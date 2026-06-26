@@ -1,0 +1,69 @@
+Screen {
+    background: #0a0e14;
+    color: #cdd6e4;
+}
+
+HeaderBar {
+    height: 1;
+    padding: 0 2;
+    background: #0f141c;
+    width: 1fr;
+}
+
+#diagnosis {
+    height: 6;
+}
+
+#row-top {
+    height: 1fr;
+    min-height: 12;
+}
+
+#row-mid {
+    height: 26%;
+    min-height: 8;
+}
+
+#rollouts {
+    height: 22%;
+    min-height: 7;
+}
+
+.panel {
+    border: round #2dd4bf;
+    border-title-color: #2dd4bf;
+    border-title-style: bold;
+    border-title-align: left;
+    background: #0f141c;
+    padding: 0 1;
+    margin: 0 1;
+}
+
+#diagnosis {
+    border: round #a78bfa;
+    border-title-color: #a78bfa;
+}
+
+#overview {
+    width: 1fr;
+}
+
+#hack {
+    width: 1fr;
+}
+
+#curve {
+    width: 2fr;
+}
+
+#components {
+    width: 1fr;
+}
+
+#alerts {
+    width: 1fr;
+}
+
+Footer {
+    background: #0f141c;
+}

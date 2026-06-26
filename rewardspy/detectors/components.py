@@ -23,9 +23,16 @@ class ComponentDominanceDetector(BaseDetector):
         "high": (0.85, 0.70),
     }
 
+    # Need a reasonable sample before judging dominance, so the first few noisy
+    # records do not trigger a false positive.
+    MIN_RECORDS = 30
+
     def check(
         self, store: MetricStore, record: RolloutRecord | None = None
     ) -> DetectionResult:
+        if store.count < self.MIN_RECORDS:
+            return DetectionResult.insufficient_data()
+
         means = {
             name: stat.rolling_mean
             for name, stat in store.component_stats.items()
