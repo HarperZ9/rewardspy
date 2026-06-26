@@ -9,7 +9,7 @@ One import. Zero boilerplate.
 
 </div>
 
-![The rewardspy dashboard catching a reward hack](docs/dashboard.png)
+![The rewardspy dashboard catching a reward hack live](docs/demo.gif)
 
 ```python
 import rewardspy
