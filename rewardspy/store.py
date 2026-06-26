@@ -60,6 +60,8 @@ class MetricStore:
         self.records: deque[RolloutRecord] = deque(maxlen=max_records)
         self.alerts: list[Alert] = []
         self.step_counter: int = 0
+        # Set by DetectionEngine so consumers like the dashboard can find it.
+        self.engine: object | None = None
 
         self._window: deque[RolloutRecord] = deque(maxlen=window_size)
         self._reward_stats = RunningStats()

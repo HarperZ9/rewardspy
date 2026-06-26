@@ -27,8 +27,9 @@ from pathlib import Path
 from typing import Any
 from uuid import uuid4
 
+from .detectors import DetectionEngine
 from .exporters import JSONLExporter
-from .records import RolloutRecord
+from .records import Alert, RolloutRecord
 from .store import MetricStore
 
 # Process-wide registry so the CLI and TUI can discover live stores by name.
@@ -64,12 +65,18 @@ def watch(
     components: list[str] | None = None,
     window_size: int = 100,
     export_path: str | Path | None = None,
+    sensitivity: str = "medium",
+    max_reward: float | None = None,
+    on_alert: Callable[[Alert], None] | None = None,
+    detect: bool = True,
 ) -> Callable[..., Any]:
     """Wrap a reward function so every call is recorded.
 
     Usable directly (``watch(fn)``), as a bare decorator (``@watch``), or as a
     parameterized decorator (``@watch(name=..., components=[...])``). When
-    ``export_path`` is set, every call is also streamed to a JSONL file.
+    ``export_path`` is set, every call is also streamed to a JSONL file. By
+    default the hack detectors run after each call; pass ``detect=False`` to
+    record without detecting.
     """
 
     def decorate(target: Callable[..., Any]) -> Callable[..., Any]:
@@ -77,7 +84,17 @@ def watch(
         store = MetricStore(fn_name, window_size=window_size)
         _register(fn_name, store)
         exporter = JSONLExporter(export_path) if export_path is not None else None
-        return _build_wrapper(target, components, store, exporter)
+        engine = (
+            DetectionEngine(
+                store,
+                sensitivity=sensitivity,
+                max_reward=max_reward,
+                callbacks=[on_alert] if on_alert else None,
+            )
+            if detect
+            else None
+        )
+        return _build_wrapper(target, components, store, exporter, engine)
 
     if fn is None:
         return decorate
@@ -99,11 +116,20 @@ class Session:
         name: str = "session",
         window_size: int = 100,
         export_path: str | Path | None = None,
+        hack_sensitivity: str = "medium",
+        max_reward: float | None = None,
+        alert_callbacks: list[Callable[[Alert], None]] | None = None,
+        detect: bool = True,
     ) -> None:
         self.name = name
         self.window_size = window_size
         self.export_path = export_path
+        self.hack_sensitivity = hack_sensitivity
+        self.max_reward = max_reward
+        self.alert_callbacks = list(alert_callbacks or [])
+        self.detect = detect
         self.stores: dict[str, MetricStore] = {}
+        self.engines: dict[str, DetectionEngine] = {}
         self._used_paths: set[Path] = set()
 
     def watch(
@@ -119,7 +145,16 @@ class Session:
             key = _register(fn_name, store)
             self.stores[key] = store
             exporter = self._make_exporter(key)
-            return _build_wrapper(target, components, store, exporter)
+            engine = None
+            if self.detect:
+                engine = DetectionEngine(
+                    store,
+                    sensitivity=self.hack_sensitivity,
+                    max_reward=self.max_reward,
+                    callbacks=self.alert_callbacks,
+                )
+                self.engines[key] = engine
+            return _build_wrapper(target, components, store, exporter, engine)
 
         if fn is None:
             return decorate
@@ -149,6 +184,7 @@ def _build_wrapper(
     components: list[str] | None,
     store: MetricStore,
     exporter: JSONLExporter | None = None,
+    engine: DetectionEngine | None = None,
 ) -> Callable[..., Any]:
     @functools.wraps(fn)
     def wrapper(*args: Any, **kwargs: Any) -> Any:
@@ -174,10 +210,13 @@ def _build_wrapper(
         store.append(record)
         if exporter is not None:
             exporter.write(record)
+        if engine is not None:
+            engine.process(record)
         return result
 
     wrapper._rewardspy_store = store  # type: ignore[attr-defined]
     wrapper.store = store  # type: ignore[attr-defined]
+    wrapper.engine = engine  # type: ignore[attr-defined]
     return wrapper
 
 
