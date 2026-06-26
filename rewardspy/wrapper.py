@@ -1,0 +1,228 @@
+"""The interceptor layer.
+
+``watch`` wraps a reward function and records every call into a ``MetricStore``.
+The wrapped function returns exactly what the original returned; rewardspy is a
+pure observer and never changes the reward your training loop sees.
+
+Three call styles are supported, in increasing order of control:
+
+    reward_fn = rewardspy.watch(my_reward_fn)          # one-line
+
+    @rewardspy.watch(name="math", components=["correctness", "format"])
+    def reward_fn(response, answer): ...
+
+    spy = rewardspy.Session(name="grpo_run_001", window_size=200)
+    @spy.watch(components=["correctness", "format"])
+    def reward_fn(response, ground_truth): ...
+"""
+
+from __future__ import annotations
+
+import functools
+import math
+import time
+import warnings
+from collections.abc import Callable, Mapping
+from typing import Any
+from uuid import uuid4
+
+from .records import RolloutRecord
+from .store import MetricStore
+
+# Process-wide registry so the CLI and TUI can discover live stores by name.
+_REGISTRY: dict[str, MetricStore] = {}
+_WARNED: set[str] = set()
+
+
+def registered_stores() -> dict[str, MetricStore]:
+    """Return a snapshot of every store created in this process, keyed by name."""
+    return dict(_REGISTRY)
+
+
+def get_store(name: str) -> MetricStore | None:
+    return _REGISTRY.get(name)
+
+
+def _register(name: str, store: MetricStore) -> str:
+    """Register a store under a unique name, suffixing duplicates."""
+    key = name
+    index = 1
+    while key in _REGISTRY:
+        index += 1
+        key = f"{name}#{index}"
+    store.name = key
+    _REGISTRY[key] = store
+    return key
+
+
+def watch(
+    fn: Callable[..., Any] | None = None,
+    *,
+    name: str | None = None,
+    components: list[str] | None = None,
+    window_size: int = 100,
+) -> Callable[..., Any]:
+    """Wrap a reward function so every call is recorded.
+
+    Usable directly (``watch(fn)``), as a bare decorator (``@watch``), or as a
+    parameterized decorator (``@watch(name=..., components=[...])``).
+    """
+
+    def decorate(target: Callable[..., Any]) -> Callable[..., Any]:
+        fn_name = name or getattr(target, "__name__", "reward_fn")
+        store = MetricStore(fn_name, window_size=window_size)
+        _register(fn_name, store)
+        return _build_wrapper(target, components, store)
+
+    if fn is None:
+        return decorate
+    if not callable(fn):
+        raise TypeError("watch() expects a callable or keyword arguments")
+    return decorate(fn)
+
+
+class Session:
+    """A named group of watched reward functions sharing configuration.
+
+    A session is useful when one run has several reward functions, or when you
+    want to set the rolling window once and reuse it. Each watched function gets
+    its own ``MetricStore``, available in ``session.stores``.
+    """
+
+    def __init__(self, name: str = "session", window_size: int = 100) -> None:
+        self.name = name
+        self.window_size = window_size
+        self.stores: dict[str, MetricStore] = {}
+
+    def watch(
+        self,
+        fn: Callable[..., Any] | None = None,
+        *,
+        name: str | None = None,
+        components: list[str] | None = None,
+    ) -> Callable[..., Any]:
+        def decorate(target: Callable[..., Any]) -> Callable[..., Any]:
+            fn_name = name or getattr(target, "__name__", "reward_fn")
+            store = MetricStore(fn_name, window_size=self.window_size)
+            key = _register(fn_name, store)
+            self.stores[key] = store
+            return _build_wrapper(target, components, store)
+
+        if fn is None:
+            return decorate
+        if not callable(fn):
+            raise TypeError("Session.watch() expects a callable or keyword arguments")
+        return decorate(fn)
+
+
+def _build_wrapper(
+    fn: Callable[..., Any],
+    components: list[str] | None,
+    store: MetricStore,
+) -> Callable[..., Any]:
+    @functools.wraps(fn)
+    def wrapper(*args: Any, **kwargs: Any) -> Any:
+        start = time.perf_counter()
+        result = fn(*args, **kwargs)  # call the original; exceptions propagate
+        duration_ms = (time.perf_counter() - start) * 1000.0
+
+        scalar, comps = _parse_result(result, components)
+        if scalar is None or not math.isfinite(scalar):
+            _warn_once(store.name)
+            return result
+
+        record = RolloutRecord(
+            call_id=uuid4().hex,
+            timestamp=time.time(),
+            step=store.step_counter,
+            scalar_reward=scalar,
+            components=comps,
+            call_duration_ms=duration_ms,
+            input_length=_input_length(args, kwargs),
+            output_length=_response_length(args, kwargs),
+        )
+        store.append(record)
+        return result
+
+    wrapper._rewardspy_store = store  # type: ignore[attr-defined]
+    wrapper.store = store  # type: ignore[attr-defined]
+    return wrapper
+
+
+def _parse_result(
+    result: Any, components: list[str] | None
+) -> tuple[float | None, dict[str, float]]:
+    """Reduce a reward function's return to a scalar plus tracked components.
+
+    A dict return is treated as named components. Its ``"total"`` entry is the
+    scalar reward; without one, the declared components (or all entries) are
+    summed. Anything else is coerced to a float.
+    """
+    if isinstance(result, Mapping):
+        comps: dict[str, float] = {}
+        for key, value in result.items():
+            try:
+                comps[str(key)] = float(value)
+            except (TypeError, ValueError):
+                continue
+        if "total" in comps:
+            scalar: float | None = comps["total"]
+        else:
+            keys = components if components else list(comps)
+            scalar = sum(comps.get(k, 0.0) for k in keys)
+        return scalar, comps
+
+    try:
+        return float(result), {}
+    except (TypeError, ValueError):
+        return None, {}
+
+
+def _estimate_length(obj: Any) -> int:
+    """Best-effort length of a value without holding on to large payloads."""
+    if obj is None:
+        return 0
+    if isinstance(obj, str):
+        return len(obj)
+    if isinstance(obj, (bytes, bytearray)):
+        return len(obj)
+    shape = getattr(obj, "shape", None)
+    if shape is not None:
+        try:
+            return int(math.prod(shape))
+        except TypeError:
+            pass
+    if isinstance(obj, (bool, int, float)):
+        return 0
+    try:
+        return len(obj)
+    except TypeError:
+        return 0
+
+
+def _response_length(args: tuple[Any, ...], kwargs: dict[str, Any]) -> int:
+    """Length of the response being scored, taken as the first argument."""
+    if args:
+        return _estimate_length(args[0])
+    if kwargs:
+        return _estimate_length(next(iter(kwargs.values())))
+    return 0
+
+
+def _input_length(args: tuple[Any, ...], kwargs: dict[str, Any]) -> int:
+    total = sum(_estimate_length(a) for a in args)
+    total += sum(_estimate_length(v) for v in kwargs.values())
+    return total
+
+
+def _warn_once(name: str) -> None:
+    if name in _WARNED:
+        return
+    _WARNED.add(name)
+    warnings.warn(
+        f"rewardspy could not read a numeric reward from '{name}'. "
+        "Return a number, or a dict with a 'total' key. These calls are passed "
+        "through unrecorded.",
+        RuntimeWarning,
+        stacklevel=3,
+    )
