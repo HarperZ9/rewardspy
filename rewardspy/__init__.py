@@ -9,6 +9,7 @@ every call to track the statistical signatures of reward hacking in real time.
     r = reward_fn(response, ground_truth)   # identical to the original
 """
 
+from .exporters import JSONLExporter, read_jsonl, write_csv
 from .records import Alert, RolloutRecord
 from .store import MetricStore
 from .wrapper import Session, get_store, registered_stores, watch
@@ -23,5 +24,8 @@ __all__ = [
     "Alert",
     "registered_stores",
     "get_store",
+    "JSONLExporter",
+    "read_jsonl",
+    "write_csv",
     "__version__",
 ]

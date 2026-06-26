@@ -23,9 +23,11 @@ import math
 import time
 import warnings
 from collections.abc import Callable, Mapping
+from pathlib import Path
 from typing import Any
 from uuid import uuid4
 
+from .exporters import JSONLExporter
 from .records import RolloutRecord
 from .store import MetricStore
 
@@ -61,18 +63,21 @@ def watch(
     name: str | None = None,
     components: list[str] | None = None,
     window_size: int = 100,
+    export_path: str | Path | None = None,
 ) -> Callable[..., Any]:
     """Wrap a reward function so every call is recorded.
 
     Usable directly (``watch(fn)``), as a bare decorator (``@watch``), or as a
-    parameterized decorator (``@watch(name=..., components=[...])``).
+    parameterized decorator (``@watch(name=..., components=[...])``). When
+    ``export_path`` is set, every call is also streamed to a JSONL file.
     """
 
     def decorate(target: Callable[..., Any]) -> Callable[..., Any]:
         fn_name = name or getattr(target, "__name__", "reward_fn")
         store = MetricStore(fn_name, window_size=window_size)
         _register(fn_name, store)
-        return _build_wrapper(target, components, store)
+        exporter = JSONLExporter(export_path) if export_path is not None else None
+        return _build_wrapper(target, components, store, exporter)
 
     if fn is None:
         return decorate
@@ -89,10 +94,17 @@ class Session:
     its own ``MetricStore``, available in ``session.stores``.
     """
 
-    def __init__(self, name: str = "session", window_size: int = 100) -> None:
+    def __init__(
+        self,
+        name: str = "session",
+        window_size: int = 100,
+        export_path: str | Path | None = None,
+    ) -> None:
         self.name = name
         self.window_size = window_size
+        self.export_path = export_path
         self.stores: dict[str, MetricStore] = {}
+        self._used_paths: set[Path] = set()
 
     def watch(
         self,
@@ -106,7 +118,8 @@ class Session:
             store = MetricStore(fn_name, window_size=self.window_size)
             key = _register(fn_name, store)
             self.stores[key] = store
-            return _build_wrapper(target, components, store)
+            exporter = self._make_exporter(key)
+            return _build_wrapper(target, components, store, exporter)
 
         if fn is None:
             return decorate
@@ -114,11 +127,28 @@ class Session:
             raise TypeError("Session.watch() expects a callable or keyword arguments")
         return decorate(fn)
 
+    def _make_exporter(self, store_name: str) -> JSONLExporter | None:
+        """Build a JSONL exporter for one watched function.
+
+        The first function uses ``export_path`` as given. If more than one
+        function shares the session, later ones get the store name inserted into
+        the filename so they do not write to the same file.
+        """
+        if self.export_path is None:
+            return None
+        base = Path(self.export_path)
+        path = base
+        if path in self._used_paths:
+            path = base.with_name(f"{base.stem}.{store_name}{base.suffix}")
+        self._used_paths.add(path)
+        return JSONLExporter(path)
+
 
 def _build_wrapper(
     fn: Callable[..., Any],
     components: list[str] | None,
     store: MetricStore,
+    exporter: JSONLExporter | None = None,
 ) -> Callable[..., Any]:
     @functools.wraps(fn)
     def wrapper(*args: Any, **kwargs: Any) -> Any:
@@ -142,6 +172,8 @@ def _build_wrapper(
             output_length=_response_length(args, kwargs),
         )
         store.append(record)
+        if exporter is not None:
+            exporter.write(record)
         return result
 
     wrapper._rewardspy_store = store  # type: ignore[attr-defined]
