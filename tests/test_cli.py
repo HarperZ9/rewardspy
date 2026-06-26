@@ -101,8 +101,34 @@ def test_export_to_jsonl_with_last(tmp_path):
     assert len(read_jsonl(out)) == 5
 
 
+def test_probe_runs_reward_function(tmp_path, monkeypatch):
+    module = tmp_path / "my_reward.py"
+    module.write_text(
+        "def reward(response, answer):\n"
+        "    return 1.0 if answer in response else 0.0\n"
+    )
+    cases = tmp_path / "cases.json"
+    cases.write_text(
+        '[{"response": "the answer is 42", "answer": "42"},'
+        ' {"response": "nope", "answer": "42"}]'
+    )
+    monkeypatch.chdir(tmp_path)
+
+    result = CliRunner().invoke(
+        main, ["probe", "my_reward:reward", "-p", str(cases)]
+    )
+    assert result.exit_code == 0
+    assert "records" in result.output
+    assert "0.5" in result.output  # mean of [1.0, 0.0]
+
+
+def test_probe_bad_target():
+    result = CliRunner().invoke(main, ["probe", "no_colon", "-p", "x"])
+    assert result.exit_code != 0
+
+
 def test_help_lists_commands():
     result = CliRunner().invoke(main, ["--help"])
     assert result.exit_code == 0
-    for command in ("show", "summary", "audit", "export"):
+    for command in ("show", "summary", "audit", "export", "probe"):
         assert command in result.output

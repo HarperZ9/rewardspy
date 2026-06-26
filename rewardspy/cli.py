@@ -12,7 +12,9 @@ streams to a ``.jsonl`` file, and ``rewardspy show run.jsonl --follow`` tails it
 
 from __future__ import annotations
 
+import importlib
 import json
+import sys
 import threading
 import time
 from pathlib import Path
@@ -27,6 +29,7 @@ from .exporters import JSONLExporter, read_jsonl, write_csv
 from .records import RolloutRecord
 from .store import MetricStore
 from .tui.render import diagnosis
+from .wrapper import watch
 
 console = Console()
 
@@ -125,22 +128,7 @@ def summary(
     if store.count == 0:
         console.print("[yellow]No records found.[/yellow]")
         return
-
-    table = Table(show_header=False, box=None, pad_edge=False)
-    table.add_column(style="dim")
-    table.add_column()
-    table.add_row("records", f"{store.count:,}")
-    table.add_row("mean", f"{store.rolling_mean:.4f}")
-    table.add_row("std", f"{store.rolling_std:.4f}")
-    table.add_row("min / max", f"{store.percentile(0):.4f} / {store.percentile(100):.4f}")
-    table.add_row("p50 / p95", f"{store.percentile(50):.4f} / {store.percentile(95):.4f}")
-
-    console.print(f"[bold]{store.name}[/bold]")
-    console.print(table)
-    console.print()
-    _print_detectors(engine)
-    console.print()
-    console.print(diagnosis(store))
+    _print_report(store, engine)
 
 
 @main.command()
@@ -190,6 +178,73 @@ def export(path: str, output: str, fmt: str, last: int | None) -> None:
             exporter.write_many(records)
 
     console.print(f"Wrote {len(records):,} records to [bold]{output}[/bold]")
+
+
+@main.command()
+@click.argument("target")
+@click.option("-p", "--prompts", required=True, type=click.Path(exists=True, dir_okay=False))
+@click.option("--window", default=100, show_default=True)
+@click.option("--sensitivity", default="medium", type=click.Choice(["low", "medium", "high"]))
+@click.option("--max-reward", type=float, default=None)
+def probe(
+    target: str, prompts: str, window: int, sensitivity: str, max_reward: float | None
+) -> None:
+    """Run a reward function over test cases offline.
+
+    TARGET is `module:function`. PROMPTS is a JSON array of test cases; each item
+    is passed to the function as keyword args, or as `args`/`kwargs` if present,
+    or as positional args if it is a list.
+    """
+    module_name, _, fn_name = target.partition(":")
+    if not fn_name:
+        raise click.BadParameter("expected module:function, e.g. my_module:reward_fn")
+
+    sys.path.insert(0, str(Path.cwd()))
+    try:
+        module = importlib.import_module(module_name)
+    except ImportError as exc:
+        raise click.ClickException(f"could not import '{module_name}': {exc}") from exc
+    fn = getattr(module, fn_name, None)
+    if fn is None:
+        raise click.ClickException(f"'{module_name}' has no attribute '{fn_name}'")
+
+    cases = json.loads(Path(prompts).read_text(encoding="utf-8"))
+    watched = watch(
+        fn, name=fn_name, window_size=window, sensitivity=sensitivity, max_reward=max_reward
+    )
+    for case in cases:
+        if isinstance(case, dict) and ("args" in case or "kwargs" in case):
+            watched(*case.get("args", []), **case.get("kwargs", {}))
+        elif isinstance(case, dict):
+            watched(**case)
+        elif isinstance(case, list):
+            watched(*case)
+        else:
+            watched(case)
+
+    store = watched.store
+    if store.count == 0:
+        console.print("[yellow]No cases scored.[/yellow]")
+        return
+    _print_report(store, watched.engine)
+
+
+def _print_report(store: MetricStore, engine: DetectionEngine) -> None:
+    table = Table(show_header=False, box=None, pad_edge=False)
+    table.add_column(style="dim")
+    table.add_column()
+    table.add_row("records", f"{store.count:,}")
+    table.add_row("mean", f"{store.rolling_mean:.4f}")
+    table.add_row("std", f"{store.rolling_std:.4f}")
+    table.add_row("min / max", f"{store.percentile(0):.4f} / {store.percentile(100):.4f}")
+    table.add_row("p50 / p95", f"{store.percentile(50):.4f} / {store.percentile(95):.4f}")
+
+    console.print(f"[bold]{store.name}[/bold]")
+    console.print(table)
+    console.print()
+    _print_detectors(engine)
+    console.print()
+    console.print(diagnosis(store))
 
 
 def _print_detectors(engine: DetectionEngine) -> None:
