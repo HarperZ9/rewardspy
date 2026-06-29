@@ -7,6 +7,8 @@ Detects reward hacking before it derails your training run.
 
 One import. Zero boilerplate.
 
+> Observe reward behavior, flag suspicious patterns, and keep training claims tied to evidence.
+
 [![CI](https://github.com/AvAdiii/rewardspy/actions/workflows/ci.yml/badge.svg)](https://github.com/AvAdiii/rewardspy/actions/workflows/ci.yml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 [![Python](https://img.shields.io/badge/python-3.10%2B-blue.svg)](pyproject.toml)
@@ -83,6 +85,17 @@ def reward(response, answer):
 - **Reward slope breaks**: a sudden strategy switch, via CUSUM change-point detection.
 - **Ceiling saturation**: most rollouts hit the maximum possible reward.
 - **GRPO group collapse**: within-group reward variance hits zero (no learning signal).
+
+## What to test first
+
+- Wrap a small reward function with `rewardspy.watch`.
+- Run `rewardspy summary logs/run.jsonl --last 500` against a fixture or live log.
+- Run `rewardspy audit logs/run.jsonl` and inspect the verdict before trusting the reward curve.
+
+## Current status
+
+Fork checkout on a feature branch. Keep upstream behavior intact; use this copy
+for focused patches and local evaluation, not Harper/Telos rebranding.
 
 See [docs/detectors.md](docs/detectors.md) for the math behind each one and
 [docs/hack_patterns.md](docs/hack_patterns.md) for a gallery of real patterns.
