@@ -6,8 +6,9 @@ documentation improvements are all useful.
 ## Development setup
 
 ```bash
-git clone https://github.com/AvAdiii/rewardspy
+git clone https://github.com/HarperZ9/rewardspy
 cd rewardspy
+git remote add upstream https://github.com/AvAdiii/rewardspy
 python -m venv .venv
 source .venv/bin/activate
 pip install -e ".[dev]"

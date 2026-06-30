@@ -50,9 +50,10 @@ dev = [
 ]
 
 [project.urls]
-Homepage = "https://github.com/AvAdiii/rewardspy"
-Repository = "https://github.com/AvAdiii/rewardspy"
-Issues = "https://github.com/AvAdiii/rewardspy/issues"
+Homepage = "https://github.com/HarperZ9/rewardspy"
+Repository = "https://github.com/HarperZ9/rewardspy"
+Issues = "https://github.com/HarperZ9/rewardspy/issues"
+Upstream = "https://github.com/AvAdiii/rewardspy"
 
 [project.scripts]
 rewardspy = "rewardspy.cli:main"

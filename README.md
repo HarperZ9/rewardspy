@@ -9,7 +9,7 @@ One import. Zero boilerplate.
 
 > Observe reward behavior, flag suspicious patterns, and keep training claims tied to evidence.
 
-[![CI](https://github.com/AvAdiii/rewardspy/actions/workflows/ci.yml/badge.svg)](https://github.com/AvAdiii/rewardspy/actions/workflows/ci.yml)
+[![CI](https://github.com/HarperZ9/rewardspy/actions/workflows/ci.yml/badge.svg)](https://github.com/HarperZ9/rewardspy/actions/workflows/ci.yml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 [![Python](https://img.shields.io/badge/python-3.10%2B-blue.svg)](pyproject.toml)
 
@@ -94,13 +94,19 @@ def reward(response, answer):
 
 ## Current status
 
-Fork checkout on a feature branch. Keep upstream behavior intact; use this copy
-for focused patches and local evaluation, not Harper/Telos rebranding.
+HarperZ9 public fork tracking
+[`AvAdiii/rewardspy`](https://github.com/AvAdiii/rewardspy). Keep upstream
+behavior intact, preserve attribution, and use this fork for focused patches,
+local evaluation, and reward-observability research that can be contributed
+back cleanly.
 
 See [docs/detectors.md](docs/detectors.md) for the math behind each one and
 [docs/hack_patterns.md](docs/hack_patterns.md) for a gallery of real patterns.
 
 ## Command line
+
+See [USAGE.md](USAGE.md) for installation, CLI commands, Python usage,
+examples, verification, and public-delivery boundaries.
 
 rewardspy streams to JSONL, so the CLI can attach to a live run from another
 terminal:

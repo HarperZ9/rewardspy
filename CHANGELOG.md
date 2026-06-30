@@ -6,6 +6,14 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+### Changed
+
+- Added HarperZ9 fork operating instructions and a standalone usage guide.
+- Updated CI to current first-party GitHub Actions majors.
+- Updated README/package links to the HarperZ9 fork while preserving upstream
+  attribution.
+- Clarified contributor setup for the HarperZ9 fork plus upstream remote.
+
 ## [0.1.0]
 
 Initial release.
