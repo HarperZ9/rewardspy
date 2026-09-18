@@ -27,14 +27,14 @@ ALERT = "#ff5c7a"
 BLOCKS = " ▁▂▃▄▅▆▇█"
 
 _STATUS = {
-    "OK": ("✓", OK),
-    "WARNING": ("▲", WARN),
-    "ALERT": ("✕", ALERT),
-    "INSUFFICIENT_DATA": ("·", DIM),
-    "NOT_APPLICABLE": ("–", DIM),
+    "OK": ("OK", OK),
+    "WARNING": ("!!", WARN),
+    "ALERT": ("XX", ALERT),
+    "INSUFFICIENT_DATA": ("..", DIM),
+    "NOT_APPLICABLE": ("--", DIM),
 }
 
 
 def status_style(status: str) -> tuple[str, str]:
     """Return ``(glyph, color)`` for a status string. Unknown maps to dim."""
-    return _STATUS.get(status, ("·", DIM))
+    return _STATUS.get(status, ("..", DIM))

@@ -79,10 +79,10 @@ def _trend(store: MetricStore) -> tuple[str, str]:
     late = statistics.fmean(r.scalar_reward for r in window[half:])
     eps = 0.01 * abs(early) + 1e-6
     if late - early > eps:
-        return "▲ rising", theme.TEXT
+        return "rising", theme.TEXT
     if late - early < -eps:
-        return "▼ falling", theme.TEXT
-    return "▬ flat", theme.MUTED
+        return "falling", theme.TEXT
+    return "flat", theme.MUTED
 
 
 def _ceiling_rate(store: MetricStore) -> float:
@@ -117,7 +117,7 @@ def diagnosis(store: MetricStore) -> Text:
         return out
 
     if not actionable:
-        out.append("✓ Healthy training\n", style=f"bold {theme.OK}")
+        out.append("OK Healthy training\n", style=f"bold {theme.OK}")
         out.append(
             "Reward is moving with no reward-hacking signatures. Keep going.",
             style=theme.TEXT,
@@ -389,4 +389,8 @@ def _muted(message: str) -> Table:
 
 
 def _truncate(text: str, width: int) -> str:
-    return text if len(text) <= width else text[: width - 1] + "…"
+    if len(text) <= width:
+        return text
+    if width <= 3:
+        return "." * width
+    return text[: width - 3] + "..."
