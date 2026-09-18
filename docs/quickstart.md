@@ -3,14 +3,16 @@
 ## Install
 
 ```bash
-pip install rewardspy
+git clone https://github.com/HarperZ9/rewardspy
+cd rewardspy
+python -m pip install -e .
 ```
 
 Optional extras:
 
 ```bash
-pip install rewardspy[trl]     # TRL integration
-pip install rewardspy[wandb]   # Weights & Biases integration
+python -m pip install -e ".[trl]"     # TRL integration
+python -m pip install -e ".[wandb]"   # Weights & Biases integration
 ```
 
 ## Wrap a reward function
