@@ -47,9 +47,9 @@ like. rewardspy is what contradicts the happy curve and tells you why.
 
 ## Install
 
-The HarperZ9 fork is not currently published on PyPI, and this repository does
-not currently have a HarperZ9 release tag. A bare `pip install rewardspy` will
-not install this fork until a package registry release exists.
+The HarperZ9 fork is distributed through [GitHub releases](https://github.com/HarperZ9/rewardspy/releases). It is not currently published on PyPI. A bare `pip install rewardspy` is not a verified installation route for this fork.
+
+Download the wheel and `SHA256SUMS.txt` from the selected release, verify its SHA-256 digest, then install the downloaded wheel with `python -m pip install PATH_TO_WHEEL`.
 
 Install from a reviewed source checkout:
 

@@ -10,8 +10,8 @@ here.
 - Package name: `rewardspy`
 - Version: `0.1.0` in `pyproject.toml` and `rewardspy.__version__`
 - License: MIT, from `LICENSE`
-- Distribution state: no HarperZ9 GitHub tag or release yet, and no PyPI
-  project verified for this fork during the documentation pass
+- Distribution channel: versioned GitHub releases with wheel, source archive
+  and SHA-256 checksums; no PyPI publication is claimed
 - Release boundary: do not tag, publish to PyPI, or publish release artifacts
   until the draft PR and this checklist are reviewed
 
