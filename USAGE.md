@@ -11,24 +11,31 @@ difference explicitly.
 
 ## Install
 
-For local development:
+The HarperZ9 fork is not currently published on PyPI, and this repository does
+not currently have a HarperZ9 release tag. Use a source checkout or a pinned
+Git commit. Do not rely on `python -m pip install rewardspy` for this fork until
+a package registry release exists.
+
+For local package usage:
+
+```bash
+git clone https://github.com/HarperZ9/rewardspy
+cd rewardspy
+python -m pip install -e .
+```
+
+For development, tests, linting, and examples:
 
 ```bash
 python -m pip install -e ".[dev]"
 ```
 
-For package usage:
+Optional integrations from the same checkout:
 
 ```bash
-python -m pip install rewardspy
-```
-
-Optional integrations:
-
-```bash
-python -m pip install "rewardspy[trl]"
-python -m pip install "rewardspy[wandb]"
-python -m pip install "rewardspy[parquet]"
+python -m pip install -e ".[trl]"
+python -m pip install -e ".[wandb]"
+python -m pip install -e ".[parquet]"
 ```
 
 ## Minimal Python Usage
@@ -104,6 +111,15 @@ Project Telos public repos when it is available locally:
 ```bash
 python -m public_surface_sweeper . --workspace --json
 ```
+
+## Troubleshooting
+
+- `No matching distribution found for rewardspy`: this fork is not on PyPI.
+  Install from a reviewed checkout or pin a Git commit.
+- `rewardspy: command not found`: use `python -m rewardspy.cli --help` or
+  confirm that your virtual environment's scripts directory is on `PATH`.
+- `ModuleNotFoundError` for optional integrations: install the matching extra
+  from the checkout, such as `python -m pip install -e ".[parquet]"`.
 
 ## Boundaries
 

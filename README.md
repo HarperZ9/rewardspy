@@ -47,9 +47,26 @@ like. rewardspy is what contradicts the happy curve and tells you why.
 
 ## Install
 
+The HarperZ9 fork is not currently published on PyPI, and this repository does
+not currently have a HarperZ9 release tag. A bare `pip install rewardspy` will
+not install this fork until a package registry release exists.
+
+Install from a reviewed source checkout:
+
 ```bash
-pip install rewardspy
+git clone https://github.com/HarperZ9/rewardspy
+cd rewardspy
+python -m pip install -e .
 ```
+
+For development, tests, linting, and examples:
+
+```bash
+python -m pip install -e ".[dev]"
+```
+
+For CI or a reproducible environment, pin the Git commit you reviewed in your
+requirements file instead of relying on a moving branch.
 
 ## Quickstart
 
@@ -133,8 +150,10 @@ from rewardspy.integrations import wandb as rspy_wandb
 - **TRL**: `watch_trl` wraps a batch reward function for `GRPOTrainer`.
 - **Weights & Biases**: log rewardspy metrics and alerts next to your curves.
 
-Install extras with `pip install rewardspy[trl]` or `pip install rewardspy[wandb]`.
-Parquet export needs `pip install rewardspy[parquet]`.
+From a source checkout, install extras with
+`python -m pip install -e ".[trl]"` or
+`python -m pip install -e ".[wandb]"`. Parquet export needs
+`python -m pip install -e ".[parquet]"`.
 
 ## Examples
 
@@ -184,7 +203,8 @@ MIT. See [LICENSE](LICENSE).
 Keep the public README, package metadata, and examples aligned with current behavior. Before opening a PR or pushing a release, run the local package verification path.
 
 ```bash
-python -m pip install -e ".[test]"
+python -m pip install -e ".[dev]"
+ruff check .
 python -m pytest
 ```
 

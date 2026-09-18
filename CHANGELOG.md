@@ -8,6 +8,8 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Changed
 
+- Replaced unavailable PyPI install instructions with source-checkout and
+  pinned-commit guidance for the HarperZ9 fork.
 - Added HarperZ9 fork operating instructions and a standalone usage guide.
 - Updated CI to current first-party GitHub Actions majors.
 - Updated README/package links to the HarperZ9 fork while preserving upstream
