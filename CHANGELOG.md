@@ -8,6 +8,8 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Changed
 
+- Added release-readiness checks for built-wheel CLI smoke testing, offline
+  false-success controls, and artifact hash generation.
 - Replaced unavailable PyPI install instructions with source-checkout and
   pinned-commit guidance for the HarperZ9 fork.
 - Added HarperZ9 fork operating instructions and a standalone usage guide.
